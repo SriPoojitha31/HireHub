@@ -26,7 +26,7 @@ app.use(morgan("dev"));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(fileUpload({
-  useTempFiles: true,
+    useTempFiles: true,
   tempFileDir: "/tmp/",
   limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
 }));
