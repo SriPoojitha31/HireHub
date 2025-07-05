@@ -53,7 +53,7 @@ A comprehensive job portal application built with the MERN stack (MongoDB, Expre
 
 4. **Start the server:**
    ```bash
-   npm start
+   nodemon server.js
    ```
 
 ### 2. Frontend Setup
