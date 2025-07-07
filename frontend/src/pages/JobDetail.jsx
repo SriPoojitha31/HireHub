@@ -2,27 +2,26 @@ import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import {
     FaArrowLeft,
-    FaBriefcase,
-    FaBuilding,
-    FaCalendar,
-    FaCheck,
-    FaGlobe,
-    FaMapMarkerAlt,
-    FaTimes,
-    FaEye,
-    FaUsers,
-    FaClock,
-    FaMoneyBillWave,
-    FaStar,
     FaBookmark,
-    FaShare,
+    FaBriefcase,
+    FaCalendar,
     FaChartLine,
-    FaShieldAlt,
-    FaHeart,
+    FaCheck,
     FaCheckCircle,
+    FaClock,
+    FaEye,
     FaFileAlt,
-    FaUpload
+    FaGlobe,
+    FaHeart,
+    FaMapMarkerAlt,
+    FaMoneyBillWave,
+    FaShare,
+    FaShieldAlt,
+    FaTimes,
+    FaUpload,
+    FaUsers
 } from "react-icons/fa";
+import ReactMarkdown from 'react-markdown';
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
@@ -38,10 +37,13 @@ const JobDetail = () => {
     coverLetter: "",
     resume: ""
   });
+  const [bookmarked, setBookmarked] = useState(false);
 
   useEffect(() => {
     fetchJobDetails();
-  }, [id]);
+    if (user) fetchBookmarkState();
+    // eslint-disable-next-line
+  }, [id, user]);
 
   const fetchJobDetails = async () => {
     try {
@@ -55,17 +57,62 @@ const JobDetail = () => {
     }
   };
 
+  const fetchBookmarkState = async () => {
+    try {
+      const response = await api.get("/users/bookmarks");
+      setBookmarked(response.data.bookmarks.some(j => j._id === id));
+    } catch (error) {
+      setBookmarked(false);
+    }
+  };
+
+  const handleBookmark = async () => {
+    if (!user) {
+      toast.error("Please login to bookmark jobs");
+      return;
+    }
+    try {
+      if (bookmarked) {
+        await api.delete(`/users/bookmark/${id}`);
+        setBookmarked(false);
+        toast.success("Removed from bookmarks");
+      } else {
+        await api.post(`/users/bookmark/${id}`);
+        setBookmarked(true);
+        toast.success("Job bookmarked");
+      }
+    } catch (error) {
+      toast.error("Failed to update bookmark");
+    }
+  };
+
   const handleApply = async (e) => {
     e.preventDefault();
+    if (!user) {
+      toast.error("Please login to apply for jobs");
+      return;
+    }
+    if (applying) return; // Prevent double submission
     setApplying(true);
-
     try {
-      await api.post(`/jobs/${id}/apply`, applicationData);
+      // Ensure resume is a string (URL or empty string)
+      const payload = {
+        ...applicationData,
+        resume: typeof applicationData.resume === 'string' ? applicationData.resume : ''
+      };
+      await api.post(`/jobs/${id}/apply`, payload);
       toast.success("Application submitted successfully!");
       setShowApplicationForm(false);
       fetchJobDetails(); // Refresh to update application status
     } catch (error) {
-      const message = error.response?.data?.message || "Failed to submit application";
+      let message = error.response?.data?.message || "Failed to submit application";
+      if (message.includes("already applied")) {
+        message = "You have already applied for this job.";
+      } else if (message.includes("Job not found")) {
+        message = "This job posting no longer exists.";
+      } else if (message.includes("Not authorized")) {
+        message = "Please login to apply for jobs.";
+      }
       toast.error(message);
     } finally {
       setApplying(false);
@@ -75,6 +122,19 @@ const JobDetail = () => {
   const hasApplied = job?.applications?.some(app => 
     app.applicant === user?.id
   );
+
+  const handleShare = () => {
+    const url = `${window.location.origin}/jobs/${id}`;
+    if (navigator.share) {
+      navigator.share({
+        title: job?.title ? `Check out this job: ${job.title}` : 'Check out this job on HireHub',
+        url
+      }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(url);
+      toast.success('Job link copied to clipboard!');
+    }
+  };
 
   if (loading) {
     return (
@@ -183,10 +243,18 @@ const JobDetail = () => {
                     )}
                     
                     <div className="flex gap-3">
-                      <button className="p-3 bg-white/20 hover:bg-white/30 rounded-xl transition-all duration-200 backdrop-blur-sm">
-                        <FaBookmark className="text-white" />
+                      <button
+                        className={`p-3 bg-white/20 hover:bg-white/30 rounded-xl transition-all duration-200 backdrop-blur-sm ${bookmarked ? "text-emerald-400" : "text-white"}`}
+                        onClick={handleBookmark}
+                        aria-label={bookmarked ? "Remove Bookmark" : "Add Bookmark"}
+                      >
+                        <FaBookmark />
                       </button>
-                      <button className="p-3 bg-white/20 hover:bg-white/30 rounded-xl transition-all duration-200 backdrop-blur-sm">
+                      <button
+                        className="p-3 bg-white/20 hover:bg-white/30 rounded-xl transition-all duration-200 backdrop-blur-sm"
+                        onClick={handleShare}
+                        aria-label="Share Job"
+                      >
                         <FaShare className="text-white" />
                       </button>
                     </div>
@@ -247,8 +315,13 @@ const JobDetail = () => {
                       <button
                         onClick={() => setShowApplicationForm(true)}
                         className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-8 py-4 rounded-2xl font-bold text-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
+                        disabled={applying}
                       >
-                        Apply for this Position
+                        {applying ? (
+                          <span className="flex items-center justify-center"><span className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-3"></span>Submitting...</span>
+                        ) : (
+                          "Apply for this Position"
+                        )}
                       </button>
                     )}
                   </div>
@@ -267,8 +340,10 @@ const JobDetail = () => {
                 </div>
               </div>
               <div className="p-8">
-                <div className="prose max-w-none">
-                  <p className="text-gray-700 leading-relaxed text-lg">{job.description}</p>
+                <div className="prose max-w-none text-gray-700 leading-relaxed text-lg">
+                  <ReactMarkdown>
+                    {job.description || ''}
+                  </ReactMarkdown>
                 </div>
               </div>
             </div>

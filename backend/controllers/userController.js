@@ -599,3 +599,85 @@ export const deleteUser = async (req, res) => {
     });
   }
 };
+
+// Add a job to bookmarks
+export const addBookmark = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const jobId = req.params.jobId;
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+    if (user.bookmarks.includes(jobId)) {
+      return res.status(400).json({ success: false, message: "Job already bookmarked" });
+    }
+    user.bookmarks.push(jobId);
+    await user.save();
+    res.status(200).json({ success: true, message: "Job bookmarked" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Error bookmarking job", error: error.message });
+  }
+};
+
+// Remove a job from bookmarks
+export const removeBookmark = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const jobId = req.params.jobId;
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+    user.bookmarks = user.bookmarks.filter(id => id.toString() !== jobId);
+    await user.save();
+    res.status(200).json({ success: true, message: "Job removed from bookmarks" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Error removing bookmark", error: error.message });
+  }
+};
+
+// Get all bookmarked jobs
+export const getBookmarks = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).populate({
+      path: "bookmarks",
+      select: "title company location salary jobType experienceLevel createdAt"
+    });
+    res.status(200).json({ success: true, bookmarks: user.bookmarks });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Error fetching bookmarks", error: error.message });
+  }
+};
+
+// Get all notifications for the user
+export const getNotifications = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+    res.status(200).json({ success: true, notifications: user.notifications });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Error fetching notifications", error: error.message });
+  }
+};
+
+// Mark a notification as read
+export const markNotificationRead = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+    const notification = user.notifications.id(req.params.id);
+    if (!notification) {
+      return res.status(404).json({ success: false, message: "Notification not found" });
+    }
+    notification.read = true;
+    await user.save();
+    res.status(200).json({ success: true, message: "Notification marked as read" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Error updating notification", error: error.message });
+  }
+};

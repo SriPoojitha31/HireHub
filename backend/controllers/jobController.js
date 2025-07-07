@@ -247,6 +247,22 @@ export const applyForJob = async (req, res) => {
         appliedJobs: {
           job: jobId,
           status: "pending"
+        },
+        notifications: {
+          message: `You applied for the job '${job.title}' at ${job.company}.`,
+          type: "application",
+          read: false
+        }
+      }
+    });
+
+    // Notify employer
+    await User.findByIdAndUpdate(job.createdBy, {
+      $push: {
+        notifications: {
+          message: `New application for your job '${job.title}' from a candidate.`,
+          type: "application",
+          read: false
         }
       }
     });
@@ -256,6 +272,11 @@ export const applyForJob = async (req, res) => {
       message: "Application submitted successfully"
     });
   } catch (error) {
+    console.error("[ApplyForJob Error]", {
+      userId: req.user?.id,
+      jobId: req.params.id,
+      error: error.stack || error.message
+    });
     res.status(500).json({
       success: false,
       message: "Error applying for job",
@@ -321,6 +342,17 @@ export const updateApplicationStatus = async (req, res) => {
       { _id: application.applicant, "appliedJobs.job": jobId },
       { $set: { "appliedJobs.$.status": status } }
     );
+
+    // Notify jobseeker
+    await User.findByIdAndUpdate(application.applicant, {
+      $push: {
+        notifications: {
+          message: `Your application for '${job.title}' was updated to '${status}'.`,
+          type: "application",
+          read: false
+        }
+      }
+    });
 
     res.status(200).json({
       success: true,

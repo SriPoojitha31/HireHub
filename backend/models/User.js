@@ -58,6 +58,15 @@ const userSchema = new mongoose.Schema({
       default: "pending"
     }
   }],
+  // Bookmarked jobs
+  bookmarks: [{ type: mongoose.Schema.Types.ObjectId, ref: "Job" }],
+  // In-app notifications
+  notifications: [{
+    message: String,
+    type: { type: String, enum: ["info", "success", "warning", "error", "application", "system"], default: "info" },
+    read: { type: Boolean, default: false },
+    createdAt: { type: Date, default: Date.now }
+  }],
   
   // For employers
   company: {

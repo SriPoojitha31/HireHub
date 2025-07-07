@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import toast from "react-hot-toast";
 import {
     FaBriefcase,
@@ -24,7 +24,8 @@ import {
     FaArrowRight,
     FaLightbulb,
     FaFilter,
-    FaDownload
+    FaDownload,
+    FaSpinner
 } from "react-icons/fa";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -35,6 +36,8 @@ const EmployerDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [selectedJob, setSelectedJob] = useState(null);
   const [showApplications, setShowApplications] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState({});
+  const statusTimeouts = useRef({});
 
   useEffect(() => {
     fetchEmployerJobs();
@@ -64,6 +67,7 @@ const EmployerDashboard = () => {
   };
 
   const handleUpdateApplicationStatus = async (jobId, applicationId, status) => {
+    setUpdatingStatus(prev => ({ ...prev, [applicationId]: true }));
     try {
       await api.put("/jobs/application/status", {
         jobId,
@@ -73,7 +77,10 @@ const EmployerDashboard = () => {
       toast.success("Application status updated!");
       fetchEmployerJobs();
     } catch (error) {
-      toast.error("Failed to update application status");
+      const message = error.response?.data?.message || "Failed to update application status";
+      toast.error(message);
+    } finally {
+      setUpdatingStatus(prev => ({ ...prev, [applicationId]: false }));
     }
   };
 
@@ -560,6 +567,7 @@ const EmployerDashboard = () => {
                                   e.target.value
                                 )}
                                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                disabled={!!updatingStatus[application._id]}
                               >
                                 <option value="pending">Pending</option>
                                 <option value="reviewed">Reviewed</option>
@@ -567,6 +575,11 @@ const EmployerDashboard = () => {
                                 <option value="rejected">Rejected</option>
                                 <option value="hired">Hired</option>
                               </select>
+                              {updatingStatus[application._id] && (
+                                <div className="flex items-center gap-2 mt-2 text-blue-500 text-xs">
+                                  <FaSpinner className="animate-spin" /> Updating...
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>

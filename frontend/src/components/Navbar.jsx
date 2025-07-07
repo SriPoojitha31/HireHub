@@ -1,31 +1,76 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import {
-    FaBars,
-    FaBriefcase,
-    FaHome,
-    FaPlus,
-    FaSearch,
-    FaSignOutAlt,
-    FaTimes,
-    FaUser,
-    FaChevronDown,
-    FaBell,
-    FaCog,
-    FaUserTie,
-    FaBuilding,
-    FaRocket,
-    FaStar,
-    FaShieldAlt
+  FaBars,
+  FaBell,
+  FaBriefcase,
+  FaBuilding,
+  FaChevronDown,
+  FaCog,
+  FaHome,
+  FaPlus,
+  FaRocket,
+  FaSearch,
+  FaSignOutAlt,
+  FaTimes,
+  FaUser,
+  FaUserTie
 } from "react-icons/fa";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 const Navbar = () => {
-  const { user, logout } = useAuth();
+  const { user, api, logout } = useAuth();
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [notifLoading, setNotifLoading] = useState(false);
+  const notifRef = useRef();
+
+  useEffect(() => {
+    if (user) fetchNotifications();
+    // eslint-disable-next-line
+  }, [user]);
+
+  const fetchNotifications = async () => {
+    setNotifLoading(true);
+    try {
+      const res = await api.get("/users/notifications");
+      setNotifications(res.data.notifications || []);
+    } catch (e) {
+      setNotifications([]);
+    } finally {
+      setNotifLoading(false);
+    }
+  };
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  const handleMarkRead = async (notifId) => {
+    try {
+      await api.put(`/users/notifications/${notifId}/read`);
+      setNotifications(notifications.map(n => n._id === notifId ? { ...n, read: true } : n));
+    } catch (e) {
+      toast.error("Failed to mark as read");
+    }
+  };
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (notifRef.current && !notifRef.current.contains(event.target)) {
+        setIsNotifOpen(false);
+      }
+    }
+    if (isNotifOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    } else {
+      document.removeEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isNotifOpen]);
 
   const handleLogout = () => {
     logout();
@@ -199,6 +244,56 @@ const Navbar = () => {
                 >
                   Sign Up
                 </Link>
+              </div>
+            )}
+
+            {user && (
+              <div className="relative mr-2">
+                <button
+                  className="relative p-3 rounded-full hover:bg-blue-50 transition-colors"
+                  onClick={() => setIsNotifOpen((v) => !v)}
+                  aria-label="Notifications"
+                >
+                  <FaBell className="text-blue-600 text-lg" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5">
+                      {unreadCount}
+                    </span>
+                  )}
+                </button>
+                {isNotifOpen && (
+                  <div ref={notifRef} className="absolute right-0 mt-2 w-96 max-w-xs bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-gray-200/50 py-2 z-50 overflow-hidden">
+                    <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                      <span className="font-bold text-gray-900 text-lg">Notifications</span>
+                      <button onClick={fetchNotifications} className="text-blue-500 text-xs font-semibold hover:underline">Refresh</button>
+                    </div>
+                    <div className="max-h-80 overflow-y-auto divide-y divide-gray-100">
+                      {notifLoading ? (
+                        <div className="p-6 text-center text-gray-500">Loading...</div>
+                      ) : notifications.length === 0 ? (
+                        <div className="p-6 text-center text-gray-400">No notifications</div>
+                      ) : notifications.map((notif) => (
+                        <div key={notif._id} className={`flex items-start gap-3 px-6 py-4 ${notif.read ? "bg-white" : "bg-blue-50"}`}>
+                          <div className="mt-1">
+                            <FaBell className={`text-lg ${notif.read ? "text-gray-300" : "text-blue-500"}`} />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-gray-800 text-sm font-medium">{notif.message}</div>
+                            <div className="text-xs text-gray-400 mt-1">{new Date(notif.createdAt).toLocaleString()}</div>
+                          </div>
+                          {!notif.read && (
+                            <button
+                              className="ml-2 text-xs text-blue-600 hover:underline"
+                              onClick={() => handleMarkRead(notif._id)}
+                            >
+                              Mark as read
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

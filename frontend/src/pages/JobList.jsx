@@ -1,29 +1,27 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import {
+    FaArrowRight,
+    FaArrowUp,
+    FaBookmark,
     FaBriefcase,
-    FaClock,
-    FaFilter,
-    FaMapMarkerAlt,
-    FaMoneyBillWave,
-    FaSearch,
-    FaStar,
-    FaTimes,
+    FaBuilding,
+    FaCheckCircle,
     FaChevronDown,
     FaChevronUp,
-    FaSort,
-    FaBookmark,
+    FaClock,
     FaEye,
-    FaBuilding,
-    FaUsers,
+    FaFilter,
     FaGlobe,
-    FaArrowUp,
-    FaArrowRight,
-    FaHeart,
-    FaShare,
-    FaCheckCircle,
     FaLightbulb,
-    FaRocket
+    FaMapMarkerAlt,
+    FaMoneyBillWave,
+    FaRocket,
+    FaSearch,
+    FaShare,
+    FaSort,
+    FaTimes,
+    FaUsers
 } from "react-icons/fa";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -48,13 +46,15 @@ const JobList = () => {
     totalPages: 1,
     total: 0
   });
+  const [bookmarks, setBookmarks] = useState([]);
 
   const jobTypes = ["full-time", "part-time", "contract", "internship", "freelance"];
   const experienceLevels = ["entry", "mid", "senior", "executive"];
 
   useEffect(() => {
     fetchJobs();
-  }, [filters, sortBy, sortOrder, pagination.currentPage]);
+    if (user) fetchBookmarks();
+  }, [filters, sortBy, sortOrder, pagination.currentPage, user]);
 
   const fetchJobs = async () => {
     try {
@@ -79,6 +79,35 @@ const JobList = () => {
       toast.error("Failed to load jobs");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchBookmarks = async () => {
+    try {
+      const response = await api.get("/users/bookmarks");
+      setBookmarks(response.data.bookmarks.map(job => job._id));
+    } catch (error) {
+      setBookmarks([]);
+    }
+  };
+
+  const handleBookmark = async (jobId) => {
+    if (!user) {
+      toast.error("Please login to bookmark jobs");
+      return;
+    }
+    try {
+      if (bookmarks.includes(jobId)) {
+        await api.delete(`/users/bookmark/${jobId}`);
+        setBookmarks(bookmarks.filter(id => id !== jobId));
+        toast.success("Removed from bookmarks");
+      } else {
+        await api.post(`/users/bookmark/${jobId}`);
+        setBookmarks([...bookmarks, jobId]);
+        toast.success("Job bookmarked");
+      }
+    } catch (error) {
+      toast.error("Failed to update bookmark");
     }
   };
 
@@ -134,6 +163,19 @@ const JobList = () => {
       "executive": "bg-red-100 text-red-800 border-red-200"
     };
     return colors[level] || "bg-gray-100 text-gray-800 border-gray-200";
+  };
+
+  const handleShare = (jobId) => {
+    const url = `${window.location.origin}/jobs/${jobId}`;
+    if (navigator.share) {
+      navigator.share({
+        title: 'Check out this job on HireHub',
+        url
+      }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(url);
+      toast.success('Job link copied to clipboard!');
+    }
   };
 
   if (loading) {
@@ -456,10 +498,18 @@ const JobList = () => {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <button className="p-2 text-gray-400 hover:text-red-500 transition-colors">
-                        <FaHeart />
+                      <button
+                        className={`p-2 ${bookmarks.includes(job._id) ? "text-emerald-500" : "text-gray-400"} hover:text-emerald-600 transition-colors`}
+                        onClick={() => handleBookmark(job._id)}
+                        aria-label={bookmarks.includes(job._id) ? "Remove Bookmark" : "Add Bookmark"}
+                      >
+                        <FaBookmark />
                       </button>
-                      <button className="p-2 text-gray-400 hover:text-blue-500 transition-colors">
+                      <button
+                        className="p-2 text-gray-400 hover:text-blue-500 transition-colors"
+                        onClick={() => handleShare(job._id)}
+                        aria-label="Share Job"
+                      >
                         <FaShare />
                       </button>
                     </div>
