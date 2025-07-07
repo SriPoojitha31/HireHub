@@ -1,12 +1,35 @@
-# Only ignore environment variable files
+# Node
+node_modules/
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Dependency directories
+backend/node_modules/
+frontend/node_modules/
+
+# Build output
+frontend/dist/
+backend/uploads/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Misc
+*.local
 
 # Node modules and logs (safe to keep for cleanliness)
-node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
