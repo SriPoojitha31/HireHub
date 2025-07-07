@@ -39,6 +39,11 @@ app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/jobs", jobRoutes);
 
+// Add a root route for API status
+app.get('/', (req, res) => {
+  res.send('🚀 HireHub API is running');
+});
+
 // Health check route
 app.get("/api/health", (req, res) => {
   res.status(200).json({
